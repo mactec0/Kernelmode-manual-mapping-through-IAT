@@ -192,7 +192,7 @@ bool c_mmap::inject() {
 
 	logger::log("Injected successfully!");
 
-	delete raw_data;
+	delete [] raw_data;
 
 	return true;
 } 
