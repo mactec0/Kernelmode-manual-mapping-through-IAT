@@ -51,8 +51,10 @@ bool c_mmap::inject() {
 		return false;
 	}
 
+	uint8_t dll_stub[] = { "\x51\x52\x55\x56\x53\x57\x41\x50\x41\x51\x41\x52\x41\x53\x41\x54\x41\x55\x41\x56\x41\x57\x48\xB8\xFF\x00\xDE\xAD\xBE\xEF\x00\xFF\x48\xBA\xFF\x00\xDE\xAD\xC0\xDE\x00\xFF\x48\x89\x10\x48\x31\xC0\x48\x31\xD2\x48\x83\xEC\x28\x48\xB9\xDE\xAD\xBE\xEF\xDE\xAD\xBE\xEF\x48\x31\xD2\x48\x83\xC2\x01\x48\xB8\xDE\xAD\xC0\xDE\xDE\xAD\xC0\xDE\xFF\xD0\x48\x83\xC4\x28\x41\x5F\x41\x5E\x41\x5D\x41\x5C\x41\x5B\x41\x5A\x41\x59\x41\x58\x5F\x5B\x5E\x5D\x5A\x59\x48\x31\xC0\xC3" };
 
-	uint8_t dll_stub[] = { "\x51\x52\x55\x56\x53\x57\x41\x50\x41\x51\x41\x52\x41\x53\x41\x54\x41\x55\x41\x56\x41\x57\x48\x83\xEC\x28\x48\xB9\xDE\xAD\xBE\xEF\xDE\xAD\xBE\xEF\x48\x31\xD2\x48\x83\xC2\x01\x48\xB8\xDE\xAD\xC0\xDE\xDE\xAD\xC0\xDE\xFF\xD0\x48\x83\xC4\x28\x41\x5F\x41\x5E\x41\x5D\x41\x5C\x41\x5B\x41\x5A\x41\x59\x41\x58\x5F\x5B\x5E\x5D\x5A\x59\x48\x31\xC0\xC3" };
+	//uint8_t dll_stub[] = { "\x51\x52\x55\x56\x53\x57\x41\x50\x41\x51\x41\x52\x41\x53\x41\x54\x41\x55\x41\x56\x41\x57\x48\x83\xEC\x28\x48\xB9\xDE\xAD\xBE\xEF\xDE\xAD\xBE\xEF\x48\x31\xD2\x48\x83\xC2\x01\x48\xB8\xDE\xAD\xC0\xDE\xDE\xAD\xC0\xDE\xFF\xD0\x48\x83\xC4\x28\x41\x5F\x41\x5E\x41\x5D\x41\x5C\x41\x5B\x41\x5A\x41\x59\x41\x58\x5F\x5B\x5E\x5D\x5A\x59\x48\x31\xC0\xC3" };
+
 
 	/*
 		dll_stub:
@@ -70,31 +72,38 @@ bool c_mmap::inject() {
 		00000010  4155              push r13
 		00000012  4156              push r14
 		00000014  4157              push r15
-		00000016  4883EC28          sub rsp,byte +0x28
-		0000001A  48B9DEADBEEFDEAD  mov rcx,0xefbeaddeefbeadde
+		00000016  48B8FF00DEADBEEF  mov rax,0xff00efbeadde00ff
+				 -00FF
+		00000020  48BAFF00DEADC0DE  mov rdx,0xff00dec0adde00ff
+				 -00FF
+		0000002A  488910            mov [rax],rdx
+		0000002D  4831C0            xor rax,rax
+		00000030  4831D2            xor rdx,rdx
+		00000033  4883EC28          sub rsp,byte +0x28
+		00000037  48B9DEADBEEFDEAD  mov rcx,0xefbeaddeefbeadde
 				 -BEEF
-		00000024  4831D2            xor rdx,rdx
-		00000027  4883C201          add rdx,byte +0x1
-		0000002B  48B8DEADC0DEDEAD  mov rax,0xdec0addedec0adde
+		00000041  4831D2            xor rdx,rdx
+		00000044  4883C201          add rdx,byte +0x1
+		00000048  48B8DEADC0DEDEAD  mov rax,0xdec0addedec0adde
 				 -C0DE
-		00000035  FFD0              call rax
-		00000037  4883C428          add rsp,byte +0x28
-		0000003B  415F              pop r15
-		0000003D  415E              pop r14
-		0000003F  415D              pop r13
-		00000041  415C              pop r12
-		00000043  415B              pop r11
-		00000045  415A              pop r10
-		00000047  4159              pop r9
-		00000049  4158              pop r8
-		0000004B  5F                pop rdi
-		0000004C  5B                pop rbx
-		0000004D  5E                pop rsi
-		0000004E  5D                pop rbp
-		0000004F  5A                pop rdx
-		00000050  59                pop rcx
-		00000051  4831C0            xor rax,rax
-		00000054  C3                ret
+		00000052  FFD0              call rax
+		00000054  4883C428          add rsp,byte +0x28
+		00000058  415F              pop r15
+		0000005A  415E              pop r14
+		0000005C  415D              pop r13
+		0000005E  415C              pop r12
+		00000060  415B              pop r11
+		00000062  415A              pop r10
+		00000064  4159              pop r9
+		00000066  4158              pop r8
+		00000068  5F                pop rdi
+		00000069  5B                pop rbx
+		0000006A  5E                pop rsi
+		0000006B  5D                pop rbp
+		0000006C  5A                pop rdx
+		0000006D  59                pop rcx
+		0000006E  4831C0            xor rax,rax
+		00000071  C3                ret
 	*/
 
 	IMAGE_DOS_HEADER *dos_header{ (IMAGE_DOS_HEADER *)(&raw_data[0]) };
@@ -164,17 +173,13 @@ bool c_mmap::inject() {
 		return false;
 	} 
 
-	auto restore_offset{ find_pattern(raw_data, data_size, "DE AD BE EF DE AD BE EF ? ? AF AF AF AF AF AF AF AF") };
-
-	logger::log_address("Restore offset", restore_offset);
-
 	uint64_t iat_function_ptr{ process.get_import_address("TranslateMessage") };
 	uint64_t orginal_function_addr{ process.read_memory<uint64_t>(iat_function_ptr) };
 
 	logger::log_address("IAT function pointer", iat_function_ptr);
 
-	*(uint64_t*)(&raw_data[restore_offset]) = orginal_function_addr;
-	*(uint64_t*)(&raw_data[restore_offset] + 0x0A) = iat_function_ptr;
+	*(uint64_t*)(dll_stub + 0x18) = iat_function_ptr;
+	*(uint64_t*)(dll_stub + 0x22) = orginal_function_addr;
 	
 	process.write_memory(base, raw_data, nt_header->FileHeader.SizeOfOptionalHeader + sizeof(nt_header->FileHeader) + sizeof(nt_header->Signature));
 
@@ -182,16 +187,22 @@ bool c_mmap::inject() {
 	map_pe_sections(base, nt_header);
 
 	uint64_t entry_point{ (uint64_t)base + nt_header->OptionalHeader.AddressOfEntryPoint };
-	*(uint64_t*)(dll_stub + 0x1c) = (uint64_t)base;
-	*(uint64_t*)(dll_stub + 0x2d) = entry_point;
+	*(uint64_t*)(dll_stub + 0x39) = (uint64_t)base;
+	*(uint64_t*)(dll_stub + 0x4a) = entry_point;
 
 	logger::log_address("Entry point", entry_point);
 	
 	process.write_memory(stub_base, (LPVOID)dll_stub, sizeof(dll_stub));
-	process.write_protect(iat_function_ptr, (uint64_t)stub_base);
+
+	uint32_t old_protect = process.virtual_protect(iat_function_ptr, sizeof(uint64_t), PAGE_READWRITE);
+	process.write_memory(iat_function_ptr, stub_base); 
 
 	logger::log("Injected successfully!");
 
+	std::this_thread::sleep_for(std::chrono::seconds(5));
+
+	process.virtual_protect(iat_function_ptr, sizeof(uint64_t), old_protect);
+	
 	delete [] raw_data;
 
 	return true;

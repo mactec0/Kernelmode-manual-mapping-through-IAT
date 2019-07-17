@@ -2,7 +2,7 @@
 
 Instead of using CreateRemoteThread or typical thread hijacking methods(e.g. GetThreadContext), 
 this mapper injects into code flow through import table. 
-Address of function is overwritten with stub address, it is later restored inside dll.
+Address of function is overwritten with stub address, it is later restored after calling the stub.
 
 #### Usage:
 ```cpp
@@ -20,9 +20,6 @@ if (!mapper.inject())
 ![](https://i.imgur.com/EQHFMJh.png)
 
 </br></br>
-
-**Make sure the restore function call inside dll will not get inlined:**
-![](https://i.imgur.com/EfahbDx.png)
 
 #### Credits
 - [teosek](https://github.com/teosek "teosek")

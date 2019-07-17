@@ -48,7 +48,7 @@ public:
 	}
 
 	template <typename T>
-	void write_memory(uint64_t address, T value)
+	void write_memory(uint64_t address, T &value)
 	{
 		WriteProcessMemory(m_handle, LPVOID(address), &value, sizeof(T), NULL);
 	}
@@ -59,7 +59,7 @@ public:
 	}
 
 	template <class T>
-	void write_protect(uint64_t address, T value)
+	void write_protect(uint64_t address, T &value)
 	{
 		uint32_t old_protect = virtual_protect(address, sizeof(T), PAGE_READWRITE);
 		write_memory(address, value);
