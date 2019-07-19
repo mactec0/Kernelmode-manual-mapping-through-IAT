@@ -1,5 +1,6 @@
 [bits 64]
- 
+
+;backup registers
 push rcx
 push rdx  
 push rbp
@@ -22,6 +23,7 @@ mov qword [rax], rdx
 xor rax, rax
 xor rdx, rdx
  
+;prepare dllmain args
 sub rsp, 0x28
 mov rcx, 0xefbeaddeefbeadde ; hModule
 xor rdx, rdx
@@ -31,6 +33,7 @@ mov rax, 0xdec0addedec0adde ; entry point
 call rax
 add rsp, 0x28
  
+;restore registers
 pop r15
 pop r14
 pop r13

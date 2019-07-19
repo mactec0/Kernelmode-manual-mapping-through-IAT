@@ -1,14 +1,16 @@
-## Manual mapping x64 without usage of CreateRemoteThread
+## Manual mapping x64 without creating any threads
 
 Instead of using CreateRemoteThread or typical thread hijacking methods(e.g. GetThreadContext), 
 this mapper injects into code flow through import table. 
 Address of function is overwritten with stub address, it is later restored after calling the stub.
+It supports interacting with the process by handle or kernel driver.
+Injecting with a driver allows you to execute code inside protected processes. 
 
 #### Usage:
 ```cpp
-c_mmap mapper;
-	
-if (!mapper.attach_to_process("notepad.exe"))
+mmap mapper(INJECTION_TYPE::KERNEL); // or INJECTION_TYPE::USERMODE
+
+if (!mapper.attach_to_process("example_process.exe"))
 	return 1;
 
 if (!mapper.load_dll("example_dll.dll"))
@@ -17,9 +19,10 @@ if (!mapper.load_dll("example_dll.dll"))
 if (!mapper.inject())
 	return 1;
 ```
-![](https://i.imgur.com/EQHFMJh.png)
+![](https://i.imgur.com/cKyFRrb.png)
 
 </br></br>
 
 #### Credits
-- [teosek](https://github.com/teosek "teosek")
+- [teosek](https://github.com/teosek "teosek") //usermode_proc class, import walking
+- Daquas //testing

@@ -4,8 +4,8 @@
 #include <chrono>
 #include <array>
 
-int main() { 
-	c_mmap mapper;
+int main(int argc, char **argv) { 
+	mmap mapper(INJECTION_TYPE::KERNEL);
 
 	if (!mapper.attach_to_process("notepad.exe"))
 		return 1;
