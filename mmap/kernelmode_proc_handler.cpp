@@ -1,5 +1,7 @@
 #include "kernelmode_proc_handler.hpp"
 
+DWORD dwRet;
+
 bool kernelmode_proc_handler::is_attached() {
 	return handle;
 }
@@ -56,21 +58,21 @@ void kernelmode_proc_handler::read_memory(uintptr_t src, uintptr_t dst, size_t s
 	if (handle == INVALID_HANDLE_VALUE)
 		return;
 	k_rw_request request{ pid, src, dst, size };
-	DeviceIoControl(handle, ioctl_read_memory, &request, sizeof(k_rw_request), 0, 0, 0, 0);
+	DeviceIoControl(handle, ioctl_read_memory, &request, sizeof(k_rw_request), 0, 0, &dwRet, 0);
 }
 
 void kernelmode_proc_handler::write_memory(uintptr_t dst, uintptr_t src, size_t size) {
 	if (handle == INVALID_HANDLE_VALUE)
 		return;
 	k_rw_request request{ pid, src, dst, size };
-	DeviceIoControl(handle, ioctl_write_memory, &request, sizeof(k_rw_request), 0, 0, 0, 0);
+	DeviceIoControl(handle, ioctl_write_memory, &request, sizeof(k_rw_request), 0, 0, &dwRet, 0);
 }
 
 uint32_t kernelmode_proc_handler::virtual_protect(uint64_t address, size_t size, uint32_t protect) {
 	if (handle == INVALID_HANDLE_VALUE)
 		return 0;
 	k_protect_mem_request request{ pid, protect, address, size };
-	if (DeviceIoControl(handle, ioctl_protect_virutal_memory, &request, sizeof(k_protect_mem_request), &request, sizeof(k_protect_mem_request), 0, 0))
+	if (DeviceIoControl(handle, ioctl_protect_virutal_memory, &request, sizeof(k_protect_mem_request), &request, sizeof(k_protect_mem_request), &dwRet, 0))
 		return protect;
 	return 0;
 }
@@ -79,7 +81,7 @@ uint64_t kernelmode_proc_handler::virtual_alloc(size_t size, uint32_t allocation
 	if (handle == INVALID_HANDLE_VALUE)
 		return 0;
 	k_alloc_mem_request request{ pid, MEM_COMMIT | MEM_RESERVE, protect, address, size };
-	if (DeviceIoControl(handle, ioctl_allocate_virtual_memory, &request, sizeof(k_rw_request), &request, sizeof(k_rw_request), 0, 0))
+	if (DeviceIoControl(handle, ioctl_allocate_virtual_memory, &request, sizeof(k_rw_request), &request, sizeof(k_rw_request), &dwRet, 0))
 		return request.addr;
 	return 0;
 }
