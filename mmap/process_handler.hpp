@@ -12,6 +12,8 @@
 
 class process_handler { 
 public:
+	virtual ~process_handler() { };
+
 	virtual bool is_attached() = 0;
 
 	virtual bool attach(const char* proc_name) = 0;

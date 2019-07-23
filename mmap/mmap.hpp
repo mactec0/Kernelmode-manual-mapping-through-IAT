@@ -14,7 +14,7 @@ enum INJECTION_TYPE{
 };
 
 class mmap {
-	process_handler *proc;
+	std::unique_ptr<process_handler> proc;
 	std::string process_name;
 	std::map<std::string, uint64_t> imports;
 	uint8_t *raw_data;

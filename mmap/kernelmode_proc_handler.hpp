@@ -39,6 +39,9 @@ class kernelmode_proc_handler final : public process_handler {
 	HANDLE handle;
 	uint32_t pid;
 public:
+	kernelmode_proc_handler();
+
+	~kernelmode_proc_handler();
 
 	virtual bool is_attached() override;
 

@@ -1,23 +1,26 @@
 #include "kernelmode_proc_handler.hpp"
 
-bool kernelmode_proc_handler::is_attached() {
-	return handle;
-}
+kernelmode_proc_handler::kernelmode_proc_handler() 
+	:handle{ INVALID_HANDLE_VALUE }, pid{ 0 } {}
+
+kernelmode_proc_handler::~kernelmode_proc_handler() { if (is_attached()) CloseHandle(handle); }
+
+bool kernelmode_proc_handler::is_attached() { return handle != INVALID_HANDLE_VALUE; }
 
 bool kernelmode_proc_handler::attach(const char* proc_name) {
 	bool is_admin{ false };
-	HANDLE hToken{ NULL };
-	if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken)) {
+	HANDLE token_handle{ NULL };
+	if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token_handle)) {
 		TOKEN_ELEVATION token;
 		DWORD size = sizeof(TOKEN_ELEVATION);
-		if (GetTokenInformation(hToken, TokenElevation, &token, sizeof(TOKEN_ELEVATION), &size)) {
+		if (GetTokenInformation(token_handle, TokenElevation, &token, sizeof(TOKEN_ELEVATION), &size)) {
 			is_admin = true;
 		}
-		CloseHandle(hToken);
+		CloseHandle(token_handle);
 	}
 
 	if (!is_admin) {
-		logger::log_error("Launch as admin");
+		LOG_ERROR("Launch as admin");
 		return false;
 	}
 
@@ -28,7 +31,7 @@ bool kernelmode_proc_handler::attach(const char* proc_name) {
 		FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
 
 	if (handle == INVALID_HANDLE_VALUE) {
-		logger::log_error("Load the driver first");
+		LOG_ERROR("Load the driver first");
 		return false;
 	}
 

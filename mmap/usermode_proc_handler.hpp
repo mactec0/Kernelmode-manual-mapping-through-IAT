@@ -2,9 +2,12 @@
 #include "process_handler.hpp"
 
 class usermode_proc_handler final : public process_handler {
-	uint32_t pid;
 	HANDLE handle;
+	uint32_t pid;
 public:
+	usermode_proc_handler();
+
+	~usermode_proc_handler();
 
 	virtual bool is_attached() override;
 

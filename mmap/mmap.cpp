@@ -1,20 +1,20 @@
 #include "mmap.hpp"
 
-mmap::mmap(INJECTION_TYPE type) { 
-	if(type == INJECTION_TYPE::KERNEL)
-		proc = new kernelmode_proc_handler();
+mmap::mmap(INJECTION_TYPE type) {
+	if (type == INJECTION_TYPE::KERNEL)
+		proc = std::make_unique<kernelmode_proc_handler>();
 	else
-		proc = new usermode_proc_handler();
+		proc = std::make_unique<usermode_proc_handler>();
 }
 
 bool mmap::attach_to_process(const char* process_name) {
 	this->process_name = process_name;
 	if (!proc->attach(process_name)) {
-		logger::log_error("Unable to attach to process!");
+		LOG_ERROR("Unable to attach to process!");
 		return false;
 	}
 	 
-	std::cout << "Attached to process " << process_name << " successfully...\n";
+	LOG("Attached to process %s successfully...", process_name); 
 	return true;
 }
  
@@ -22,7 +22,7 @@ bool mmap::load_dll(const char* file_name) {
 	std::ifstream f(file_name, std::ios::binary | std::ios::ate);
 
 	if (!f) {
-		logger::log_error("Unable to open DLL file!");
+		LOG_ERROR("Unable to open DLL file!");
 		return false;
 	}
 
@@ -44,12 +44,12 @@ bool mmap::load_dll(const char* file_name) {
 bool mmap::inject() {
 
 	if (!proc->is_attached()) {
-		logger::log_error("Not attached to process!");
+		LOG_ERROR("Not attached to process!");
 		return false;
 	}
 
 	if (!raw_data) {
-		logger::log_error("Data buffer is empty!");
+		LOG_ERROR("Data buffer is empty!");
 		return false;
 	}
 
@@ -109,14 +109,14 @@ bool mmap::inject() {
 	IMAGE_DOS_HEADER *dos_header{ (IMAGE_DOS_HEADER *)raw_data };
 
 	if (dos_header->e_magic != IMAGE_DOS_SIGNATURE) {
-		logger::log_error("Invalid DOS header signature!");
+		LOG_ERROR("Invalid DOS header signature!");
 		return false;
 	}
 
 	IMAGE_NT_HEADERS *nt_header{ (IMAGE_NT_HEADERS *)(&raw_data[dos_header->e_lfanew]) };
 
 	if (nt_header->Signature != IMAGE_NT_SIGNATURE) {
-		logger::log_error("Invalid NT header signature!");
+		LOG_ERROR("Invalid NT header signature!");
 		return false;
 	}
 
@@ -125,22 +125,22 @@ bool mmap::inject() {
 									   PAGE_EXECUTE_READWRITE) };
 
 	if (!base) {
-		logger::log_error("Unable to allocate memory for the image!");
+		LOG_ERROR("Unable to allocate memory for the image!");
 		return false;
 	}
 
-	logger::log_address("Image base", base);
+	LOG("Image base: 0x%p", base);
 
 	uint64_t stub_base{ proc->virtual_alloc(sizeof(dll_stub),
 											MEM_COMMIT | MEM_RESERVE,
 											PAGE_EXECUTE_READWRITE) };
 
 	if (!stub_base) {
-		logger::log_error("Unable to allocate memory for the stub!");
+		LOG_ERROR("Unable to allocate memory for the stub!");
 		return false;
 	}
 
-	logger::log_address("Stub base", stub_base);
+	LOG("Stub base: 0x%p", stub_base);
 
 	PIMAGE_IMPORT_DESCRIPTOR import_descriptor{ (PIMAGE_IMPORT_DESCRIPTOR)get_ptr_from_rva(
 												(uint64_t)(nt_header->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress),
@@ -148,7 +148,7 @@ bool mmap::inject() {
 												raw_data) };
 
 	if (nt_header->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].Size) {
-		logger::log("Solving imports...");
+		LOG("Solving imports...");
 		solve_imports(raw_data, nt_header, import_descriptor);
 	}
 
@@ -158,7 +158,7 @@ bool mmap::inject() {
 																		raw_data)};
 
 	if (nt_header->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].Size) {
-		logger::log("Solving relocations..."); 
+		LOG("Solving relocations..."); 
 		solve_relocations((uint64_t) raw_data,
 						  base,
 						  nt_header,
@@ -168,18 +168,18 @@ bool mmap::inject() {
 
 	 
 	if (!parse_imports()) {
-		logger::log_error("Unable to parse imports!");
+		LOG_ERROR("Unable to parse imports!");
 		return false;
 	} 
 
 	uint64_t iat_function_ptr{ imports["TranslateMessage"] };
 	if (!iat_function_ptr) { 
-		logger::log_error("Cannot find import");
+		LOG_ERROR("Cannot find import");
 		return false;
 	}
 
 	uint64_t orginal_function_addr{ read_memory<uint64_t>(iat_function_ptr) };
-	logger::log_address("IAT function pointer", iat_function_ptr);
+	LOG("IAT function pointer: 0x%p", iat_function_ptr);
 
 	*(uint64_t*)(dll_stub + 0x18) = iat_function_ptr;
 	*(uint64_t*)(dll_stub + 0x22) = orginal_function_addr;
@@ -193,7 +193,7 @@ bool mmap::inject() {
 
 	proc->write_memory(base, (uintptr_t)raw_data, nt_header->FileHeader.SizeOfOptionalHeader + sizeof(nt_header->FileHeader) + sizeof(nt_header->Signature));
 
-	logger::log("Mapping PE sections...");
+	LOG("Mapping PE sections...");
 	map_pe_sections(base, nt_header);
 
 	uint64_t entry_point{ (uint64_t)base + nt_header->OptionalHeader.AddressOfEntryPoint };
@@ -208,17 +208,17 @@ bool mmap::inject() {
 	call rax
 	*/
 
-	logger::log_address("Entry point", entry_point);	
+	LOG("Entry point: 0x%p", entry_point);	
 
 	proc->write_memory(stub_base, (uintptr_t)dll_stub, sizeof(dll_stub));
 
-	auto old_protect = proc->virtual_protect(iat_function_ptr, sizeof(uint64_t), PAGE_READWRITE);
+	proc->virtual_protect(iat_function_ptr, sizeof(uint64_t), PAGE_READWRITE);
 	proc->write_memory(iat_function_ptr, (uintptr_t)&stub_base, sizeof(uint64_t));
-	
-	logger::log("Injected successfully!");
+
+	LOG("Injected successfully!");
 
 	system("Pause");
-	proc->virtual_protect(iat_function_ptr, sizeof(uint64_t), old_protect);
+	proc->virtual_protect(iat_function_ptr, sizeof(uint64_t), PAGE_READONLY);
 
 	delete [] raw_data;
 	return true;
@@ -325,7 +325,7 @@ uint64_t mmap::get_proc_address(const char* module_name, const char* func) {
 bool mmap::parse_imports() {
 	auto base{ proc->get_module_base(process_name.c_str()) };
 	if (!base) {
-		logger::log_error("Cannot get module base");
+		LOG_ERROR("Cannot get module base");
 		return false;
 	}
 

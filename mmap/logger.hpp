@@ -1,8 +1,5 @@
-#include <iostream>
-#include <string>
+#include <cstdio>
 
-namespace logger {
-	void log(const std::string& message);
-	void log_error(const std::string& message);
-	void log_address(const std::string& name, uint64_t value);
-}
+#define LOG_ERROR(str, ...) fprintf(stderr,"ERROR: " str "\n", ##__VA_ARGS__)
+
+#define LOG(str, ...) fprintf(stdout, str "\n", ##__VA_ARGS__)

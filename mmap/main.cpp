@@ -1,8 +1,4 @@
-﻿#include <iostream>
-#include "mmap.hpp"
-#include <thread>
-#include <chrono>
-#include <array>
+﻿#include "mmap.hpp"
 
 int main(int argc, char **argv) { 
 	mmap mapper(INJECTION_TYPE::KERNEL);
@@ -16,7 +12,7 @@ int main(int argc, char **argv) {
 	if (!mapper.inject())
 		return 1;
 
-	std::cout << "\nPress any key to close.\n";
+	LOG("\nPress any key to close.");
 	std::getchar();
 	 
 	return 0;
