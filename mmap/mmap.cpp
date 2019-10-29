@@ -172,19 +172,33 @@ bool mmap::inject() {
 		return false;
 	} 
 
-	uint64_t iat_function_ptr{ imports["TranslateMessage"] };
-	if (!iat_function_ptr) { 
-		LOG_ERROR("Cannot find import");
+	auto read_ptr = [this](uint64_t base, std::vector<uint64_t> offsets) -> uint64_t {
+		auto ret_addr = base;
+		for (auto off : offsets) {
+			ret_addr = read_memory<uint64_t>(ret_addr + off);
+			if (!ret_addr)
+				return (uint64_t)nullptr;
+		}
+		return ret_addr;
+	};
+
+	// gameoverlayrenderer64.dll swapchain sig [48 39 0D ? ? ? ? 75 16 48 C7 05 ? ? ? ? ? ? ? ? 48 C7 05]
+	uint64_t vmt_function_ptr = read_ptr(proc->get_module_base("GameOverlayRenderer64.dll"), { 0x01884C8, 0xe0, 0x00 });
+
+	if (!vmt_function_ptr) {
+		LOG_ERROR("Cannot find vmt table");
 		return false;
 	}
 
-	uint64_t orginal_function_addr{ read_memory<uint64_t>(iat_function_ptr) };
-	LOG("IAT function pointer: 0x%p", iat_function_ptr);
+	vmt_function_ptr += 11*sizeof(uintptr_t);
 
-	*(uint64_t*)(dll_stub + 0x18) = iat_function_ptr;
+	uint64_t orginal_function_addr{ read_memory<uint64_t>(vmt_function_ptr) };
+	LOG("VMT function pointer: 0x%p", vmt_function_ptr);
+
+	*(uint64_t*)(dll_stub + 0x18) = vmt_function_ptr;
 	*(uint64_t*)(dll_stub + 0x22) = orginal_function_addr;
 	/* Save pointer and orginal function address for stub to restre it.
-	mov rax, 0xff00efbeadde00ff  ; dll_stub + 0x18 (iat_function_ptr)
+	mov rax, 0xff00efbeadde00ff  ; dll_stub + 0x18 (vmt_function_ptr)
 	mov rdx, 0xff00dec0adde00ff  ; dll_stub + 0x22 (orginal_function_addr)
 	mov qword [rax], rdx
 	xor rax, rax
@@ -212,13 +226,13 @@ bool mmap::inject() {
 
 	proc->write_memory(stub_base, (uintptr_t)dll_stub, sizeof(dll_stub));
 
-	proc->virtual_protect(iat_function_ptr, sizeof(uint64_t), PAGE_READWRITE);
-	proc->write_memory(iat_function_ptr, (uintptr_t)&stub_base, sizeof(uint64_t));
+	proc->virtual_protect(vmt_function_ptr, sizeof(uint64_t), PAGE_READWRITE);
+	proc->write_memory(vmt_function_ptr, (uintptr_t)&stub_base, sizeof(uint64_t));
 
 	LOG("Injected successfully!");
 
 	system("Pause");
-	proc->virtual_protect(iat_function_ptr, sizeof(uint64_t), PAGE_READONLY);
+	proc->virtual_protect(vmt_function_ptr, sizeof(uint64_t), PAGE_READONLY);
 
 	delete [] raw_data;
 	return true;
